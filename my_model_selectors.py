@@ -99,7 +99,7 @@ class SelectorBIC(ModelSelector):
             if self.verbose:
                 print("failure on {}".format(self.this_word))
             return None
-        
+
 
 class SelectorDIC(ModelSelector):
     ''' select best model based on Discriminative Information Criterion
@@ -111,10 +111,43 @@ class SelectorDIC(ModelSelector):
     '''
 
     def select(self):
+
         warnings.filterwarnings("ignore", category=DeprecationWarning)
 
-        # TODO implement model selection based on DIC scores
-        raise NotImplementedError
+        # List of other words
+        other_words = set(self.words.keys()).copy()
+        other_words.remove(self.this_word)
+
+        # List of average logL for each choice of n_component
+        DIC_n_components = []
+
+        # iterate over all the range of n_components for finding the best model
+        for n in range(self.min_n_components, self.max_n_components + 1):
+
+            try:
+                model = GaussianHMM(n_components=n, n_iter=1000).fit(self.X, self.lengths)
+                logL_this_word = model.score(self.X, self.lengths)
+
+                logL_other_words = []
+                for word in other_words:
+                    X, lengths = self.hwords[word]
+                    logL_other_words.append(model.score(X, lengths))
+
+                DIC = logL_this_word - np.mean(logL_other_words)
+                DIC_n_components.append([DIC, n])
+
+            except:
+                continue
+
+        try:
+            best_n = max(DIC_n_components)[1]
+            model = GaussianHMM(n_components=best_n, n_iter=1000).fit(self.X, self.lengths)
+            return model
+        except:
+            if self.verbose:
+                print("failure on {}".format(self.this_word))
+            return None
+
 
 
 class SelectorCV(ModelSelector):
