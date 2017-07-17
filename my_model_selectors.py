@@ -161,12 +161,8 @@ class SelectorCV(ModelSelector):
         # Getting the sequence of each occurrence of the word
         word_sequences = self.sequences
 
-        # Setting the number of splits to 2 to 4
-        split_method = KFold(n_splits= min(len(self.lengths), 4))
-
         # List of average logL for each choice of n_component
         logL_n_components = []
-
 
         # iterate over all the range of n_components for finding the best model
         for i in range(self.min_n_components, self.max_n_components+1):
@@ -174,26 +170,30 @@ class SelectorCV(ModelSelector):
             # List of average logL for CV
             logL_cv = []
 
-            # Splitting word sequences into train and test for cv
-            for cv_train_idx, cv_test_idx in split_method.split(word_sequences):
+            try:
 
-                # Converting the sequences into the format needed for hmmlearn
-                # Alternatively, I could do the split on X and lengths directly.
-                X_train, lengths_train, X_test, lengths_test = [], [], [], []
-                for idx in cv_train_idx:
-                    X_train += word_sequences[idx]
-                    lengths_train.append(len(word_sequences[idx]))
-                for idx in cv_test_idx:
-                    X_test += word_sequences[idx]
-                    lengths_test.append(len(word_sequences[idx]))
+                # Setting the number of splits to 2 to 4
+                split_method = KFold(n_splits= min(len(self.lengths), 4))
 
-                try:
-                    model = GaussianHMM(n_components=i, n_iter=1000).fit(X_train, lengths_train)
-                    logL = model.score(X_test, lengths_test)
-                    logL_cv.append(logL)
+                # Splitting word sequences into train and test for cv
+                for cv_train_idx, cv_test_idx in split_method.split(word_sequences):
 
-                except:
-                    continue
+                    # Converting the sequences into the format needed for hmmlearn
+                    # Alternatively, I could do the split on X and lengths directly.
+                    X_train, lengths_train, X_test, lengths_test = [], [], [], []
+                    for idx in cv_train_idx:
+                        X_train += word_sequences[idx]
+                        lengths_train.append(len(word_sequences[idx]))
+                    for idx in cv_test_idx:
+                        X_test += word_sequences[idx]
+                        lengths_test.append(len(word_sequences[idx]))
+
+                        model = GaussianHMM(n_components=i, n_iter=1000).fit(X_train, lengths_train)
+                        logL = model.score(X_test, lengths_test)
+                        logL_cv.append(logL)
+
+            except:
+                continue
 
             if logL_cv:
                 logL_n_components.append([np.mean(logL_cv),i])
